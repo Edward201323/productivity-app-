@@ -11,7 +11,7 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='Calendar',
           console=False, argv_emulation=False, target_arch=None, codesign_identity=None,
           entitlements_file=None)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='Calendar')
-app = BUNDLE(coll, name='Calendar.app', icon=None,
+app = BUNDLE(coll, name='Calendar.app', icon=str(root / 'Calendar.icns'),
              bundle_identifier='com.twenty.python', info_plist={
                  'CFBundleName': 'Calendar',
                  'CFBundleDisplayName': 'Calendar',
