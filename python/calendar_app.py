@@ -37,6 +37,48 @@ def button(parent, title, x, y, width, height, target, action):
     return control
 
 
+def accent():
+    return A.NSColor.controlAccentColor()
+
+
+def tinted(color, alpha):
+    """Catalog colors need a concrete color space before they accept an alpha."""
+    try:
+        resolved = color.colorUsingColorSpace_(A.NSColorSpace.sRGBColorSpace())
+        return (resolved or color).colorWithAlphaComponent_(alpha)
+    except (ValueError, AttributeError):
+        return None
+
+
+def styled(text, color, font, wrap=False, centered=False, struck=False):
+    paragraph = A.NSMutableParagraphStyle.alloc().init()
+    paragraph.setAlignment_(A.NSTextAlignmentCenter if centered else A.NSTextAlignmentLeft)
+    if wrap:
+        paragraph.setLineBreakMode_(A.NSLineBreakByWordWrapping)
+    attributes = {A.NSForegroundColorAttributeName: color,
+                  A.NSFontAttributeName: font,
+                  A.NSParagraphStyleAttributeName: paragraph}
+    if struck:
+        attributes[A.NSStrikethroughStyleAttributeName] = A.NSUnderlineStyleSingle
+    return F.NSMutableAttributedString.alloc().initWithString_attributes_(text, attributes)
+
+
+def day_title(number, marked, is_today):
+    font = A.NSFont.boldSystemFontOfSize_(14) if is_today else A.NSFont.systemFontOfSize_(14)
+    title = styled(f"{number}", accent() if is_today else A.NSColor.labelColor(), font, centered=True)
+    if marked:
+        title.appendAttributedString_(styled(" •", accent(), font, centered=True))
+    return title
+
+
+def row_title(heading, body, struck=False):
+    title = styled(heading + "\n", accent(),
+                   A.NSFont.systemFontOfSize_weight_(13, A.NSFontWeightMedium), wrap=True)
+    title.appendAttributedString_(styled(body, A.NSColor.secondaryLabelColor(),
+                                         A.NSFont.systemFontOfSize_(13), wrap=True, struck=struck))
+    return title
+
+
 class BackgroundView(A.NSView):
     def drawRect_(self, rect):
         A.NSColor.windowBackgroundColor().setFill()
@@ -203,7 +245,7 @@ class CalendarDelegate(F.NSObject):
             self.clock_label.setFrame_(((30, 593), (780, 75)))
             self.clock_label.setStringValue_(countdown(remaining))
             self.clock_label.setFont_(A.NSFont.monospacedDigitSystemFontOfSize_weight_(60, A.NSFontWeightLight))
-            self.clock_label.setTextColor_(A.NSColor.labelColor())
+            self.clock_label.setTextColor_(accent())
             self.primary.setTitle_("End Session" if remaining > 0 else "Save a note")
             if remaining <= 0 and self.editor is None and self.goal_editor is None and self.window.attachedSheet() is None:
                 self.selected = local_day(self.active.startDate)
@@ -228,15 +270,27 @@ class CalendarDelegate(F.NSObject):
         self.cells = month_cells(self.month.year, self.month.month)
         counts = Counter(local_day(session.startDate) for session in self.history)
         goal_counts = self.store.goal_counts()
+        today = date.today()
+        tint = tinted(accent(), 0.18)
         for index, control in enumerate(self.day_buttons):
             day = self.cells[index] if index < len(self.cells) else None
             control.setHidden_(day is None)
             if day:
                 goals = goal_counts.get(day.isoformat(), 0)
-                control.setTitle_(f"{day.day}" + (" •" if counts[day] or goals else ""))
-                control.setState_(A.NSControlStateValueOn if day == self.selected else A.NSControlStateValueOff)
-                control.setFont_(A.NSFont.boldSystemFontOfSize_(14) if day == date.today() else A.NSFont.systemFontOfSize_(14))
-                control.setAccessibilityLabel_(f"{day:%B %d, %Y}, {counts[day]} sessions, {goals} goals")
+                marked = bool(counts[day] or goals)
+                is_today = day == today
+                selected = day == self.selected
+                control.setState_(A.NSControlStateValueOn if selected else A.NSControlStateValueOff)
+                control.setBezelColor_(tint if is_today and not selected else None)
+                control.setFont_(A.NSFont.boldSystemFontOfSize_(14) if is_today
+                                 else A.NSFont.systemFontOfSize_(14))
+                # A selected day is drawn filled by AppKit, which supplies its own title color.
+                if selected:
+                    control.setTitle_(f"{day.day}" + (" •" if marked else ""))
+                else:
+                    control.setAttributedTitle_(day_title(day.day, marked, is_today))
+                control.setAccessibilityLabel_(
+                    f"{day:%B %d, %Y}{', today' if is_today else ''}, {counts[day]} sessions, {goals} goals")
         self.day_heading.setStringValue_(self.selected.strftime("%A, %b %d"))
         self.render_day_panel()
 
@@ -265,11 +319,12 @@ class CalendarDelegate(F.NSObject):
             preview = " ".join(session.note.split()) or "No note"
             if len(preview) > 130:
                 preview = preview[:127] + "…"
-            control = button(document, f"{start} – {end} · {duration_text(session.duration)}\n{preview}", 4, height - (index + 1) * 98,
-                             322, 90, self, "editSession:")
+            control = button(document, "", 4, height - (index + 1) * 98, 322, 90, self, "editSession:")
             control.setBezelStyle_(A.NSBezelStyleRegularSquare)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
+            control.setAttributedTitle_(row_title(
+                f"{start} – {end} · {duration_text(session.duration)}", preview))
             control.setTag_(index)
             control.setToolTip_("Edit note or delete session")
         self.session_scroll.setDocumentView_(document)
@@ -297,10 +352,14 @@ class CalendarDelegate(F.NSObject):
             preview = " ".join(goal.text.split())
             if len(preview) > 120:
                 preview = preview[:117] + "…"
-            control = button(document, preview, 36, y + 4, 290, 70, self, "editGoal:")
+            control = button(document, "", 36, y + 4, 290, 70, self, "editGoal:")
             control.setBezelStyle_(A.NSBezelStyleRegularSquare)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
+            control.setAttributedTitle_(styled(
+                preview,
+                A.NSColor.secondaryLabelColor() if goal.completed else A.NSColor.labelColor(),
+                A.NSFont.systemFontOfSize_(13), wrap=True, struck=goal.completed))
             control.setTag_(index)
             control.setToolTip_("Edit goal: " + goal.text)
         self.session_scroll.setDocumentView_(document)
@@ -582,6 +641,7 @@ def main():
     # Retain the original data location and bundle identity across the app rename.
     data_dir = Path.home() / "Library" / "Application Support" / "Twenty Python"
     data_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.chmod(0o700)
     # Also protects the SQLite store when launching a second copy with open -n.
     with (data_dir / "app.lock").open("a") as lock:
         try:

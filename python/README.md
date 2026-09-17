@@ -46,7 +46,7 @@ Calendar retains the original “Twenty Python” data folder and app identifier
 
 The model contains `id`, `startDate`, `endDate`, `note`, and `completed`. Dates are absolute Unix timestamps. Running sessions have no `endDate`; ending early persists the actual stop time, while a full session records its original 20-minute deadline. The session remains unfinished until its note is saved. Calendar totals use actual durations. A unique index permits only one unfinished session, and a process lock prevents two copies of Calendar from editing the database simultaneously.
 
-Sessions are stored only in this database.
+Sessions are stored only in this database. The data folder is created with `700` permissions and the database, WAL, and shared-memory files with `600`, so only your account can read your notes and goals. Nothing is sent anywhere, and the repository's `.gitignore` refuses `*.sqlite3`, `*.db`, `*.log`, and lock files.
 
 Daily goals use a separate `goals` table in the same database, with a stable calendar date, text, completion state, and creation time. Existing session databases are upgraded automatically without changing their saved sessions.
 

@@ -99,6 +99,18 @@ class Store:
                 )
             """)
             self.db.execute("CREATE INDEX IF NOT EXISTS goals_by_day ON goals(day, createdAt)")
+        self._restrict(path)
+
+    @staticmethod
+    def _restrict(path: Path) -> None:
+        """Session notes and goals are private: readable only by the account that wrote them."""
+        targets = [(path.parent, 0o700)] + [
+            (path.with_name(path.name + suffix), 0o600) for suffix in ("", "-wal", "-shm")]
+        for target, mode in targets:
+            try:
+                target.chmod(mode)
+            except OSError:
+                pass
 
     def _sessions(self, sql: str, args: tuple = ()) -> list[Session]:
         return [Session(**dict(row)) for row in self.db.execute(sql, args)]

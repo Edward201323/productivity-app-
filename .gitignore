@@ -9,3 +9,12 @@ dist/
 *.pyc
 .app-venv/
 .runtime/
+
+# Personal data: session notes, goals, and anything logged. Never commit these.
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.log
+*.lock
+app.lock

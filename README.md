@@ -25,3 +25,5 @@ See the [Python README](python/README.md) for building, usage, data, and tests.
 ```
 
 Sessions and daily goals live in the same database. Dates are absolute Unix timestamps, grouped by session start time in the Mac's current local time zone.
+
+Your notes and goals stay private. They are written outside this repository, the folder and database are created owner-only (`700` / `600`), and nothing is ever uploaded — the app makes no network requests. `.gitignore` also blocks `*.sqlite3`, `*.db`, `*.log`, and lock files, so a database copied into the project cannot be committed by accident.
