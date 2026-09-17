@@ -384,7 +384,7 @@ class CalendarDelegate(F.NSObject):
             preview = " ".join(session.note.split()) or "No note"
             if len(preview) > 130:
                 preview = preview[:127] + "…"
-            title = row_title(f"{start} – {end} · {duration_text(session.duration)}", preview)
+            title = row_title(f"{start} – {end}", preview)
             rows.append((title, row_height(title, 322, 22, 56)))
         height = max(300, sum(row + 8 for _, row in rows))
         document = A.NSView.alloc().initWithFrame_(((0, 0), (330, height)))
