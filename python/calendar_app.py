@@ -84,6 +84,11 @@ def card(parent, frame):
 
 
 ROW_INSET = 14
+
+
+def clock_time(moment):
+    """12-hour, without a leading zero: 2:49 PM."""
+    return moment.strftime("%I:%M %p").lstrip("0")
 ALARM_SOUND = "Glass"
 
 
@@ -396,8 +401,8 @@ class CalendarDelegate(F.NSObject):
         self.day_summary.setStringValue_(f"{count} {'session' if count == 1 else 'sessions'} · {total}")
         rows = []
         for session in self.day_sessions:
-            start = datetime.fromtimestamp(session.startDate).strftime("%H:%M")
-            end = datetime.fromtimestamp(session.endDate).strftime("%H:%M")
+            start = clock_time(datetime.fromtimestamp(session.startDate))
+            end = clock_time(datetime.fromtimestamp(session.endDate))
             preview = " ".join(session.note.split()) or "No note"
             if len(preview) > 130:
                 preview = preview[:127] + "…"
@@ -599,7 +604,8 @@ class CalendarDelegate(F.NSObject):
         self.editor.setTitle_("Edit session" if session.completed else "What did you do?")
         view = self.editor.contentView()
         label(view, "Edit session" if session.completed else "What did you do?", 24, 300, 472, 30, 22)
-        label(view, datetime.fromtimestamp(session.startDate).strftime("%b %d, %Y at %H:%M") + " · " + duration_text(session.duration),
+        started = datetime.fromtimestamp(session.startDate)
+        label(view, f"{started:%b %d, %Y} at {clock_time(started)} · {duration_text(session.duration)}",
               24, 270, 472, 24, 13, True)
         scroll = A.NSScrollView.alloc().initWithFrame_(((24, 70), (472, 185)))
         scroll.setHasVerticalScroller_(True)
