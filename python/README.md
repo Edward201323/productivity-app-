@@ -32,7 +32,7 @@ Build on an Intel Mac to produce an Intel app. The bundle uses local ad-hoc sign
 - Switch to **Daily Goals** and click **Add Goal** to write your own goal for the selected date. Save it, check it off when finished, or click its text to edit or delete it. You can plan goals for any calendar date; goals do not repeat or move to another day automatically. Saved goals and checkbox changes persist immediately. Unsaved goal drafts are only kept until you quit or cancel editing.
 - Closing the main window keeps the app running. Use its Dock icon or **Window → Show Calendar** to reopen it. **⌘Q** quits.
 
-Dates are grouped by session start time in the Mac’s current local time zone. The calendar starts on Sunday. Native controls and semantic system colors follow light and dark appearance. The palette follows macOS Calendar: red marks today and the running clock, blue marks logged entries, and the selected day takes a neutral fill, so the only saturated colors carry meaning.
+Dates are grouped by session start time in the Mac’s current local time zone. The calendar starts on Sunday. Native controls and semantic system colors follow light and dark appearance. The palette follows macOS Calendar and uses a single accent: red marks today, logged entries, and the running clock, while the selected day takes a neutral fill, so the only saturated color carries meaning. The clock itself is primary text — white in dark appearance.
 
 ## Data
 

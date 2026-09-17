@@ -37,14 +37,10 @@ def button(parent, title, x, y, width, height, target, action):
     return control
 
 
-# Calendar's palette: red marks today and the running clock, blue marks entries,
-# and a day is selected with a neutral grey fill rather than a colored one.
-def today_color():
+# Calendar's palette, in a single accent: red marks today, logged entries, and
+# the running clock. A selected day takes a neutral fill so it never competes.
+def accent():
     return A.NSColor.systemRedColor()
-
-
-def entry_color():
-    return A.NSColor.systemBlueColor()
 
 
 def selection_color():
@@ -93,7 +89,7 @@ def day_title(number, marked, color, dot_color, bold):
 
 
 def row_title(heading, body, struck=False):
-    title = styled(heading + "\n", entry_color(),
+    title = styled(heading + "\n", accent(),
                    A.NSFont.systemFontOfSize_weight_(13, A.NSFontWeightMedium), wrap=True)
     title.appendAttributedString_(styled(body, A.NSColor.secondaryLabelColor(),
                                          A.NSFont.systemFontOfSize_(13), wrap=True, struck=struck))
@@ -270,7 +266,7 @@ class CalendarDelegate(F.NSObject):
             self.clock_label.setFrame_(((30, 593), (780, 75)))
             self.clock_label.setStringValue_(countdown(remaining))
             self.clock_label.setFont_(A.NSFont.monospacedDigitSystemFontOfSize_weight_(60, A.NSFontWeightLight))
-            self.clock_label.setTextColor_(today_color())
+            self.clock_label.setTextColor_(accent())
             self.primary.setTitle_("End Session" if remaining > 0 else "Save a note")
             if remaining <= 0 and self.editor is None and self.goal_editor is None and self.window.attachedSheet() is None:
                 self.selected = local_day(self.active.startDate)
@@ -281,7 +277,7 @@ class CalendarDelegate(F.NSObject):
             self.clock_label.setFrame_(((30, 600), (780, 36)))
             self.clock_label.setStringValue_(datetime.now().strftime("%I:%M:%S %p").lstrip("0"))
             self.clock_label.setFont_(A.NSFont.systemFontOfSize_(24))
-            self.clock_label.setTextColor_(A.NSColor.secondaryLabelColor())
+            self.clock_label.setTextColor_(A.NSColor.labelColor())
             self.primary.setTitle_("Start")
 
     @objc.python_method
@@ -311,9 +307,9 @@ class CalendarDelegate(F.NSObject):
                 if is_today and selected:
                     number = dot = A.NSColor.whiteColor()
                 elif is_today:
-                    number, dot = today_color(), entry_color()
+                    number, dot = accent(), accent()
                 else:
-                    number, dot = A.NSColor.labelColor(), entry_color()
+                    number, dot = A.NSColor.labelColor(), accent()
                 control.setFont_(A.NSFont.boldSystemFontOfSize_(14) if is_today
                                  else A.NSFont.systemFontOfSize_(14))
                 control.setAttributedTitle_(day_title(day.day, marked, number, dot, is_today))
@@ -329,7 +325,7 @@ class CalendarDelegate(F.NSObject):
         selected_today = self.selected == today
         for box, day, color in (
                 (self.today_box, today,
-                 today_color() if selected_today else tinted(today_color(), 0.16)),
+                 accent() if selected_today else tinted(accent(), 0.16)),
                 (self.selection_box, None if selected_today else self.selected,
                  selection_color())):
             if day is not None and day in self.cells and color is not None:
