@@ -11,10 +11,10 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='Calendar',
           console=False, argv_emulation=False, target_arch=None, codesign_identity=None,
           entitlements_file=None)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='Calendar')
-app = BUNDLE(coll, name='Calendar.app', icon=str(root / 'Calendar.icns'),
+app = BUNDLE(coll, name='lock in no gooning.app', icon=str(root / 'Calendar.icns'),
              bundle_identifier='com.twenty.python', info_plist={
-                 'CFBundleName': 'Calendar',
-                 'CFBundleDisplayName': 'Calendar',
+                 'CFBundleName': 'lock in no gooning',
+                 'CFBundleDisplayName': 'lock in no gooning',
                  'CFBundleShortVersionString': '1.0',
                  'CFBundleVersion': '2',
                  'LSMinimumSystemVersion': '14.0',

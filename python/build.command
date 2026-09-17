@@ -14,4 +14,4 @@ fi
 .venv/bin/uv pip install --python .app-venv/bin/python -r requirements.txt
 export PYINSTALLER_CONFIG_DIR="$PWD/build/pyinstaller-cache"
 .app-venv/bin/pyinstaller --noconfirm Calendar.spec
-print "Built $PWD/dist/Calendar.app"
+print "Built $PWD/dist/lock in no gooning.app"

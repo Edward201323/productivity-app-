@@ -1,10 +1,10 @@
-# Calendar
+# lock in no gooning
 
 A small, offline macOS 14+ app: one window, a 20-minute timer, daily goals, and a calendar of what you did. Written in Python with native AppKit controls through PyObjC and a local SQLite database. No backend, account, or network requests.
 
 ## Run
 
-Open [`python/dist/Calendar.app`](python/dist/Calendar.app), or double-click [`python/run.command`](python/run.command). The bundle includes its own Python runtime, so neither Xcode nor a separate Python installation is needed to run it. If the bundle is missing, `run.command` builds it first.
+Open [`python/dist/lock in no gooning.app`](python/dist/lock in no gooning.app), or double-click [`python/run.command`](python/run.command). The bundle includes its own Python runtime, so neither Xcode nor a separate Python installation is needed to run it. If the bundle is missing, `run.command` builds it first.
 
 See the [Python README](python/README.md) for building, usage, data, and tests.
 

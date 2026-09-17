@@ -1,4 +1,4 @@
-"""Calendar: a native, single-window macOS app written in Python."""
+"""lock in no gooning: a native, single-window macOS app written in Python."""
 from __future__ import annotations
 
 from collections import Counter
@@ -154,7 +154,7 @@ class CalendarDelegate(F.NSObject):
         style = A.NSWindowStyleMaskTitled | A.NSWindowStyleMaskClosable | A.NSWindowStyleMaskMiniaturizable
         self.window = A.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             ((0, 0), (840, 720)), style, A.NSBackingStoreBuffered, False)
-        self.window.setTitle_("Calendar")
+        self.window.setTitle_("lock in no gooning")
         self.window.setReleasedWhenClosed_(False)
         self.window.center()
         self.window.setContentView_(BackgroundView.alloc().initWithFrame_(((0, 0), (840, 720))))
@@ -217,11 +217,11 @@ class CalendarDelegate(F.NSObject):
         menubar = A.NSMenu.alloc().init()
         app_item = A.NSMenuItem.alloc().init()
         menubar.addItem_(app_item)
-        app_menu = A.NSMenu.alloc().initWithTitle_("Calendar")
-        app_menu.addItemWithTitle_action_keyEquivalent_("About Calendar", "orderFrontStandardAboutPanel:", "")
+        app_menu = A.NSMenu.alloc().initWithTitle_("lock in no gooning")
+        app_menu.addItemWithTitle_action_keyEquivalent_("about lock in no gooning", "orderFrontStandardAboutPanel:", "")
         app_menu.addItem_(A.NSMenuItem.separatorItem())
-        app_menu.addItemWithTitle_action_keyEquivalent_("Hide Calendar", "hide:", "h")
-        app_menu.addItemWithTitle_action_keyEquivalent_("Quit Calendar", "terminate:", "q")
+        app_menu.addItemWithTitle_action_keyEquivalent_("hide lock in no gooning", "hide:", "h")
+        app_menu.addItemWithTitle_action_keyEquivalent_("quit lock in no gooning", "terminate:", "q")
         app_item.setSubmenu_(app_menu)
         edit_item = A.NSMenuItem.alloc().init()
         menubar.addItem_(edit_item)
@@ -234,7 +234,7 @@ class CalendarDelegate(F.NSObject):
         window_item = A.NSMenuItem.alloc().init()
         menubar.addItem_(window_item)
         window_menu = A.NSMenu.alloc().initWithTitle_("Window")
-        show = window_menu.addItemWithTitle_action_keyEquivalent_("Show Calendar", "showWindow:", "0")
+        show = window_menu.addItemWithTitle_action_keyEquivalent_("show lock in no gooning", "showWindow:", "0")
         show.setTarget_(self)
         window_menu.addItemWithTitle_action_keyEquivalent_("Minimize", "performMiniaturize:", "m")
         window_item.setSubmenu_(window_menu)
@@ -245,7 +245,7 @@ class CalendarDelegate(F.NSObject):
             self.initialize(Path.home() / "Library" / "Application Support" / "Twenty Python")
         except Exception as error:
             alert = A.NSAlert.alloc().init()
-            alert.setMessageText_("Couldn’t open Calendar")
+            alert.setMessageText_("couldn’t open lock in no gooning")
             alert.setInformativeText_(f"Your data has not been reset.\n\n{error}")
             alert.runModal()
             A.NSApplication.sharedApplication().terminate_(None)
@@ -709,11 +709,11 @@ class CalendarDelegate(F.NSObject):
             return
         if error or not allowed:
             if error:
-                F.NSLog("Calendar notification: %@", error.localizedDescription())
+                F.NSLog("lock in no gooning notification: %@", error.localizedDescription())
             return
         content = UN.UNMutableNotificationContent.alloc().init()
         content.setTitle_("Session complete")
-        content.setBody_("What did you do? Open Calendar to save your note.")
+        content.setBody_("What did you do? Open lock in no gooning to save your note.")
         content.setSound_(UN.UNNotificationSound.defaultSound())
         trigger = UN.UNTimeIntervalNotificationTrigger.triggerWithTimeInterval_repeats_(
             max(1.0, session.deadline - time.time()), False)
@@ -729,7 +729,7 @@ class CalendarDelegate(F.NSObject):
         if self.active is None or self.active.id != session_id or self.active.endDate is not None:
             self.remove_notification(session_id)
         elif error:
-            F.NSLog("Calendar notification: %@", error.localizedDescription())
+            F.NSLog("lock in no gooning notification: %@", error.localizedDescription())
 
     @objc.python_method
     def remove_notification(self, session_id):
@@ -747,7 +747,7 @@ class CalendarDelegate(F.NSObject):
 
 def main():
     if sys.platform != "darwin":
-        raise SystemExit("Calendar requires macOS 14 or later.")
+        raise SystemExit("lock in no gooning requires macOS 14 or later.")
     if not getattr(sys, "frozen", False):
         raise SystemExit("Build the macOS app first: run ./run.command (notifications require an app bundle).")
     # Retain the original data location and bundle identity across the app rename.
