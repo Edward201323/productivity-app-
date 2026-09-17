@@ -37,8 +37,18 @@ def button(parent, title, x, y, width, height, target, action):
     return control
 
 
-def accent():
-    return A.NSColor.controlAccentColor()
+# Calendar's palette: red marks today and the running clock, blue marks entries,
+# and a day is selected with a neutral grey fill rather than a colored one.
+def today_color():
+    return A.NSColor.systemRedColor()
+
+
+def entry_color():
+    return A.NSColor.systemBlueColor()
+
+
+def selection_color():
+    return A.NSColor.unemphasizedSelectedContentBackgroundColor()
 
 
 def tinted(color, alpha):
@@ -48,6 +58,17 @@ def tinted(color, alpha):
         return (resolved or color).colorWithAlphaComponent_(alpha)
     except (ValueError, AttributeError):
         return None
+
+
+def highlight(parent, size):
+    box = A.NSBox.alloc().initWithFrame_(((0, 0), size))
+    box.setBoxType_(A.NSBoxCustom)
+    box.setTitlePosition_(A.NSNoTitle)
+    box.setBorderWidth_(0)
+    box.setCornerRadius_(7)
+    box.setHidden_(True)
+    parent.addSubview_(box)
+    return box
 
 
 def styled(text, color, font, wrap=False, centered=False, struck=False):
@@ -63,16 +84,16 @@ def styled(text, color, font, wrap=False, centered=False, struck=False):
     return F.NSMutableAttributedString.alloc().initWithString_attributes_(text, attributes)
 
 
-def day_title(number, marked, is_today):
-    font = A.NSFont.boldSystemFontOfSize_(14) if is_today else A.NSFont.systemFontOfSize_(14)
-    title = styled(f"{number}", accent() if is_today else A.NSColor.labelColor(), font, centered=True)
+def day_title(number, marked, color, dot_color, bold):
+    font = A.NSFont.boldSystemFontOfSize_(14) if bold else A.NSFont.systemFontOfSize_(14)
+    title = styled(f"{number}", color, font, centered=True)
     if marked:
-        title.appendAttributedString_(styled(" •", accent(), font, centered=True))
+        title.appendAttributedString_(styled(" •", dot_color, font, centered=True))
     return title
 
 
 def row_title(heading, body, struck=False):
-    title = styled(heading + "\n", accent(),
+    title = styled(heading + "\n", entry_color(),
                    A.NSFont.systemFontOfSize_weight_(13, A.NSFontWeightMedium), wrap=True)
     title.appendAttributedString_(styled(body, A.NSColor.secondaryLabelColor(),
                                          A.NSFont.systemFontOfSize_(13), wrap=True, struck=struck))
@@ -122,12 +143,16 @@ class CalendarDelegate(F.NSObject):
         button(content, "›", 393, 410, 38, 30, self, "nextMonth:")
         for index, name in enumerate(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]):
             label(content, name, 30 + index * 58, 375, 56, 22, 12, True, True)
+        self.selection_box = highlight(content, (56, 44))
+        self.today_box = highlight(content, (56, 44))
         self.day_buttons = []
         for index in range(42):
             row, col = divmod(index, 7)
             control = button(content, "", 30 + col * 58, 321 - row * 47, 56, 44, self, "selectDay:")
             control.setTag_(index)
             control.setButtonType_(A.NSButtonTypePushOnPushOff)
+            # Flat cells, like Calendar's grid: a bezel would hide the fill behind it.
+            control.setBordered_(False)
             self.day_buttons.append(control)
         self.day_heading = label(content, "", 466, 408, 345, 30, 18)
         self.day_tabs = A.NSSegmentedControl.alloc().initWithFrame_(((466, 371), (342, 28)))
@@ -245,7 +270,7 @@ class CalendarDelegate(F.NSObject):
             self.clock_label.setFrame_(((30, 593), (780, 75)))
             self.clock_label.setStringValue_(countdown(remaining))
             self.clock_label.setFont_(A.NSFont.monospacedDigitSystemFontOfSize_weight_(60, A.NSFontWeightLight))
-            self.clock_label.setTextColor_(accent())
+            self.clock_label.setTextColor_(today_color())
             self.primary.setTitle_("End Session" if remaining > 0 else "Save a note")
             if remaining <= 0 and self.editor is None and self.goal_editor is None and self.window.attachedSheet() is None:
                 self.selected = local_day(self.active.startDate)
@@ -271,7 +296,7 @@ class CalendarDelegate(F.NSObject):
         counts = Counter(local_day(session.startDate) for session in self.history)
         goal_counts = self.store.goal_counts()
         today = date.today()
-        tint = tinted(accent(), 0.18)
+        self.place_highlights(today)
         for index, control in enumerate(self.day_buttons):
             day = self.cells[index] if index < len(self.cells) else None
             control.setHidden_(day is None)
@@ -280,19 +305,39 @@ class CalendarDelegate(F.NSObject):
                 marked = bool(counts[day] or goals)
                 is_today = day == today
                 selected = day == self.selected
-                control.setState_(A.NSControlStateValueOn if selected else A.NSControlStateValueOff)
-                control.setBezelColor_(tint if is_today and not selected else None)
+                # Selection is drawn behind the cells, so today keeps its red
+                # treatment whether or not it is also the selected day.
+                control.setState_(A.NSControlStateValueOff)
+                if is_today and selected:
+                    number = dot = A.NSColor.whiteColor()
+                elif is_today:
+                    number, dot = today_color(), entry_color()
+                else:
+                    number, dot = A.NSColor.labelColor(), entry_color()
                 control.setFont_(A.NSFont.boldSystemFontOfSize_(14) if is_today
                                  else A.NSFont.systemFontOfSize_(14))
-                # A selected day is drawn filled by AppKit, which supplies its own title color.
-                if selected:
-                    control.setTitle_(f"{day.day}" + (" •" if marked else ""))
-                else:
-                    control.setAttributedTitle_(day_title(day.day, marked, is_today))
+                control.setAttributedTitle_(day_title(day.day, marked, number, dot, is_today))
                 control.setAccessibilityLabel_(
-                    f"{day:%B %d, %Y}{', today' if is_today else ''}, {counts[day]} sessions, {goals} goals")
+                    f"{day:%B %d, %Y}{', today' if is_today else ''}"
+                    f"{', selected' if selected else ''}, {counts[day]} sessions, {goals} goals")
         self.day_heading.setStringValue_(self.selected.strftime("%A, %b %d"))
         self.render_day_panel()
+
+    @objc.python_method
+    def place_highlights(self, today):
+        """Today is a red fill, the selected day a neutral one, as Calendar draws them."""
+        selected_today = self.selected == today
+        for box, day, color in (
+                (self.today_box, today,
+                 today_color() if selected_today else tinted(today_color(), 0.16)),
+                (self.selection_box, None if selected_today else self.selected,
+                 selection_color())):
+            if day is not None and day in self.cells and color is not None:
+                box.setFrame_(self.day_buttons[self.cells.index(day)].frame())
+                box.setFillColor_(color)
+                box.setHidden_(False)
+            else:
+                box.setHidden_(True)
 
     def changeDayTab_(self, sender):
         self.render_day_panel()
