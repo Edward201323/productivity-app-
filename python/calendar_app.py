@@ -67,6 +67,17 @@ def highlight(parent, size):
     return box
 
 
+def card(parent, frame):
+    box = A.NSBox.alloc().initWithFrame_(frame)
+    box.setBoxType_(A.NSBoxCustom)
+    box.setTitlePosition_(A.NSNoTitle)
+    box.setBorderWidth_(0)
+    box.setCornerRadius_(8)
+    box.setFillColor_(A.NSColor.controlBackgroundColor())
+    parent.addSubview_(box)
+    return box
+
+
 def styled(text, color, font, wrap=False, centered=False, struck=False):
     paragraph = A.NSMutableParagraphStyle.alloc().init()
     paragraph.setAlignment_(A.NSTextAlignmentCenter if centered else A.NSTextAlignmentLeft)
@@ -360,8 +371,9 @@ class CalendarDelegate(F.NSObject):
             preview = " ".join(session.note.split()) or "No note"
             if len(preview) > 130:
                 preview = preview[:127] + "…"
+            card(document, ((4, height - (index + 1) * 98), (322, 90)))
             control = button(document, "", 4, height - (index + 1) * 98, 322, 90, self, "editSession:")
-            control.setBezelStyle_(A.NSBezelStyleRegularSquare)
+            control.setBordered_(False)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
             control.setAttributedTitle_(row_title(
@@ -384,17 +396,22 @@ class CalendarDelegate(F.NSObject):
             label(document, "Add something you want to do.", 10, height - 112, 310, 24, 13, True, True)
         for index, goal in enumerate(self.day_goals):
             y = height - (index + 1) * 78
-            check = A.NSButton.checkboxWithTitle_target_action_("", self, "toggleGoal:")
+            mark = A.NSImage.imageWithSystemSymbolName_accessibilityDescription_(
+                "checkmark.circle.fill" if goal.completed else "circle", goal.text)
+            check = A.NSButton.buttonWithImage_target_action_(mark, self, "toggleGoal:")
+            check.setBordered_(False)
+            check.setImagePosition_(A.NSImageOnly)
+            check.setContentTintColor_(accent() if goal.completed else A.NSColor.tertiaryLabelColor())
             check.setFrame_(((6, y + 26), (24, 24)))
             check.setTag_(index)
-            check.setState_(A.NSControlStateValueOn if goal.completed else A.NSControlStateValueOff)
             check.setAccessibilityLabel_(goal.text)
             document.addSubview_(check)
             preview = " ".join(goal.text.split())
             if len(preview) > 120:
                 preview = preview[:117] + "…"
+            card(document, ((36, y + 4), (290, 70)))
             control = button(document, "", 36, y + 4, 290, 70, self, "editGoal:")
-            control.setBezelStyle_(A.NSBezelStyleRegularSquare)
+            control.setBordered_(False)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
             control.setAttributedTitle_(styled(
@@ -414,8 +431,8 @@ class CalendarDelegate(F.NSObject):
 
     def toggleGoal_(self, sender):
         try:
-            self.store.set_goal_completed(self.day_goals[sender.tag()].id,
-                                          sender.state() == A.NSControlStateValueOn)
+            goal = self.day_goals[sender.tag()]
+            self.store.set_goal_completed(goal.id, not goal.completed)
             self.render_day_panel()
         except sqlite3.Error as error:
             self.render_day_panel()
@@ -458,6 +475,7 @@ class CalendarDelegate(F.NSObject):
         cancel.setKeyEquivalent_("\x1b")
         save = button(view, "Save", 402, 20, 94, 32, self, "saveGoal:")
         save.setKeyEquivalent_("\r")
+        save.setBezelColor_(accent())
         self.window.beginSheet_completionHandler_(self.goal_editor, None)
         self.goal_editor.makeFirstResponder_(self.goal_field)
 
@@ -566,6 +584,7 @@ class CalendarDelegate(F.NSObject):
             button(view, "Discard…", 24, 20, 94, 32, self, "deleteNote:")
         save = button(view, "Save", 402, 20, 94, 32, self, "saveNote:")
         save.setKeyEquivalent_("\r")
+        save.setBezelColor_(accent())
         self.window.beginSheet_completionHandler_(self.editor, None)
         self.editor.makeFirstResponder_(self.note_field)
 

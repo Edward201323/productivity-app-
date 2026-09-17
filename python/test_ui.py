@@ -78,7 +78,8 @@ def main():
         delegate.saveGoal_(None)
         pump()
         assert delegate.day_goals[0].text == "Write a first draft"
-        checkbox = delegate.session_scroll.documentView().subviews()[0]
+        checkbox = next(v for v in delegate.session_scroll.documentView().subviews()
+                        if isinstance(v, A.NSButton))
         checkbox.performClick_(None)
         assert delegate.store.goals(date.today())[0].completed
         delegate.open_goal_editor(delegate.day_goals[0])
