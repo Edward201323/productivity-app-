@@ -78,11 +78,18 @@ def card(parent, frame):
     return box
 
 
-def styled(text, color, font, wrap=False, centered=False, struck=False):
+ROW_INSET = 14
+
+
+def styled(text, color, font, wrap=False, centered=False, struck=False, indent=0):
     paragraph = A.NSMutableParagraphStyle.alloc().init()
     paragraph.setAlignment_(A.NSTextAlignmentCenter if centered else A.NSTextAlignmentLeft)
     if wrap:
         paragraph.setLineBreakMode_(A.NSLineBreakByWordWrapping)
+    if indent:
+        paragraph.setFirstLineHeadIndent_(indent)
+        paragraph.setHeadIndent_(indent)
+        paragraph.setTailIndent_(-indent)
     attributes = {A.NSForegroundColorAttributeName: color,
                   A.NSFontAttributeName: font,
                   A.NSParagraphStyleAttributeName: paragraph}
@@ -101,10 +108,19 @@ def day_title(number, marked, color, dot_color, bold):
 
 def row_title(heading, body, struck=False):
     title = styled(heading + "\n", accent(),
-                   A.NSFont.systemFontOfSize_weight_(13, A.NSFontWeightMedium), wrap=True)
+                   A.NSFont.systemFontOfSize_weight_(13, A.NSFontWeightMedium),
+                   wrap=True, indent=ROW_INSET)
     title.appendAttributedString_(styled(body, A.NSColor.secondaryLabelColor(),
-                                         A.NSFont.systemFontOfSize_(13), wrap=True, struck=struck))
+                                         A.NSFont.systemFontOfSize_(13), wrap=True,
+                                         struck=struck, indent=ROW_INSET))
     return title
+
+
+def row_height(title, width, padding, minimum):
+    """Rows fit their own text, so a one-line note does not sit in a tall empty card."""
+    bounds = title.boundingRectWithSize_options_(
+        (width, 10000), A.NSStringDrawingUsesLineFragmentOrigin)
+    return max(minimum, int(bounds.size.height) + 1 + padding)
 
 
 class BackgroundView(A.NSView):
@@ -361,23 +377,28 @@ class CalendarDelegate(F.NSObject):
         count = len(self.day_sessions)
         total = duration_text(sum(session.duration for session in self.day_sessions))
         self.day_summary.setStringValue_(f"{count} {'session' if count == 1 else 'sessions'} · {total}")
-        height = max(300, count * 98)
-        document = A.NSView.alloc().initWithFrame_(((0, 0), (330, height)))
-        if not self.day_sessions:
-            label(document, "No sessions this day", 10, height - 100, 310, 30, 15, True, True)
-        for index, session in enumerate(self.day_sessions):
+        rows = []
+        for session in self.day_sessions:
             start = datetime.fromtimestamp(session.startDate).strftime("%H:%M")
             end = datetime.fromtimestamp(session.endDate).strftime("%H:%M")
             preview = " ".join(session.note.split()) or "No note"
             if len(preview) > 130:
                 preview = preview[:127] + "…"
-            card(document, ((4, height - (index + 1) * 98), (322, 90)))
-            control = button(document, "", 4, height - (index + 1) * 98, 322, 90, self, "editSession:")
+            title = row_title(f"{start} – {end} · {duration_text(session.duration)}", preview)
+            rows.append((title, row_height(title, 322, 22, 56)))
+        height = max(300, sum(row + 8 for _, row in rows))
+        document = A.NSView.alloc().initWithFrame_(((0, 0), (330, height)))
+        if not self.day_sessions:
+            label(document, "No sessions this day", 10, height - 100, 310, 30, 15, True, True)
+        y = height
+        for index, (title, row) in enumerate(rows):
+            y -= row + 8
+            card(document, ((4, y), (322, row)))
+            control = button(document, "", 4, y, 322, row, self, "editSession:")
             control.setBordered_(False)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
-            control.setAttributedTitle_(row_title(
-                f"{start} – {end} · {duration_text(session.duration)}", preview))
+            control.setAttributedTitle_(title)
             control.setTag_(index)
             control.setToolTip_("Edit note or delete session")
         self.session_scroll.setDocumentView_(document)
@@ -389,35 +410,40 @@ class CalendarDelegate(F.NSObject):
         done = sum(goal.completed for goal in self.day_goals)
         self.day_summary.setStringValue_(f"{done} of {len(self.day_goals)} goals completed")
         self.session_scroll.setFrame_(((462, 78), (350, 254)))
-        height = max(254, len(self.day_goals) * 78)
+        rows = []
+        for goal in self.day_goals:
+            preview = " ".join(goal.text.split())
+            if len(preview) > 120:
+                preview = preview[:117] + "…"
+            title = styled(preview,
+                           A.NSColor.secondaryLabelColor() if goal.completed else A.NSColor.labelColor(),
+                           A.NSFont.systemFontOfSize_(13), wrap=True, struck=goal.completed,
+                           indent=ROW_INSET)
+            rows.append((goal, title, row_height(title, 290, 20, 44)))
+        height = max(254, sum(row + 8 for _, _, row in rows))
         document = A.NSView.alloc().initWithFrame_(((0, 0), (330, height)))
         if not self.day_goals:
             label(document, "No goals for this day", 10, height - 85, 310, 26, 15, True, True)
             label(document, "Add something you want to do.", 10, height - 112, 310, 24, 13, True, True)
-        for index, goal in enumerate(self.day_goals):
-            y = height - (index + 1) * 78
+        y = height
+        for index, (goal, title, row) in enumerate(rows):
+            y -= row + 8
             mark = A.NSImage.imageWithSystemSymbolName_accessibilityDescription_(
                 "checkmark.circle.fill" if goal.completed else "circle", goal.text)
             check = A.NSButton.buttonWithImage_target_action_(mark, self, "toggleGoal:")
             check.setBordered_(False)
             check.setImagePosition_(A.NSImageOnly)
             check.setContentTintColor_(accent() if goal.completed else A.NSColor.tertiaryLabelColor())
-            check.setFrame_(((6, y + 26), (24, 24)))
+            check.setFrame_(((6, y + (row - 24) / 2), (24, 24)))
             check.setTag_(index)
             check.setAccessibilityLabel_(goal.text)
             document.addSubview_(check)
-            preview = " ".join(goal.text.split())
-            if len(preview) > 120:
-                preview = preview[:117] + "…"
-            card(document, ((36, y + 4), (290, 70)))
-            control = button(document, "", 36, y + 4, 290, 70, self, "editGoal:")
+            card(document, ((36, y), (290, row)))
+            control = button(document, "", 36, y, 290, row, self, "editGoal:")
             control.setBordered_(False)
             control.setAlignment_(A.NSTextAlignmentLeft)
             control.cell().setWraps_(True)
-            control.setAttributedTitle_(styled(
-                preview,
-                A.NSColor.secondaryLabelColor() if goal.completed else A.NSColor.labelColor(),
-                A.NSFont.systemFontOfSize_(13), wrap=True, struck=goal.completed))
+            control.setAttributedTitle_(title)
             control.setTag_(index)
             control.setToolTip_("Edit goal: " + goal.text)
         self.session_scroll.setDocumentView_(document)
