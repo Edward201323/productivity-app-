@@ -1,0 +1,11 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.venv/
+__pycache__/
+dist/
+*.pyc
+.app-venv/
+.runtime/
