@@ -46,7 +46,7 @@ Calendar retains the original “Twenty Python” data folder and app identifier
 
 The model contains `id`, `startDate`, `endDate`, `note`, and `completed`. Dates are absolute Unix timestamps. Running sessions have no `endDate`; ending early persists the actual stop time, while a full session records its original 20-minute deadline. The session remains unfinished until its note is saved. Calendar totals use actual durations. A unique index permits only one unfinished session, and a process lock prevents two copies of Calendar from editing the database simultaneously.
 
-The Python and Swift projects use separate stores; this version does not import the Swift app’s sessions.
+Sessions are stored only in this database.
 
 Daily goals use a separate `goals` table in the same database, with a stable calendar date, text, completion state, and creation time. Existing session databases are upgraded automatically without changing their saved sessions.
 

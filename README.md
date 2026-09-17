@@ -1,46 +1,27 @@
 # Calendar
 
-**Python version:** Open [`python/dist/Calendar.app`](python/dist/Calendar.app), or double-click [`python/run.command`](python/run.command). It uses native macOS controls and SQLite, and includes its Python runtime. See the [Python README](python/README.md) for building, usage, and tests.
+A small, offline macOS 14+ app: one window, a 20-minute timer, daily goals, and a calendar of what you did. Written in Python with native AppKit controls through PyObjC and a local SQLite database. No backend, account, or network requests.
 
-The original Swift/Xcode version remains below.
+## Run
 
-A small, offline macOS 14+ app built with SwiftUI and SwiftData. One window, a 20-minute timer, and a calendar of what you did.
+Open [`python/dist/Calendar.app`](python/dist/Calendar.app), or double-click [`python/run.command`](python/run.command). The bundle includes its own Python runtime, so neither Xcode nor a separate Python installation is needed to run it. If the bundle is missing, `run.command` builds it first.
 
-## Open and run
-
-1. Open `Twenty.xcodeproj` in Xcode 15 or later.
-2. Select the **Twenty** scheme and **My Mac**, then press **⌘R**.
-3. Start a session and allow notifications when macOS asks.
-
-The project uses local ad-hoc signing (“Sign to Run Locally”); no development team or backend is required. The app is sandboxed and has no network entitlement or CloudKit integration.
+See the [Python README](python/README.md) for building, usage, data, and tests.
 
 ## Behavior
 
-- **Start** immediately saves an unfinished session. The displayed countdown is calculated from `startDate + 1200 - Date()`; the timer only refreshes the view.
-- **Cancel** deletes the unfinished session and cancels its notification.
-- At the deadline, **What did you do?** opens with a multiline note field. **Save** completes the session. Blank notes are allowed.
-- Quitting, closing the window, or sleeping does not reset the deadline. Reopening after the deadline restores the note prompt. An unsaved note draft is not retained across quitting.
-- A local notification is scheduled with macOS when a session starts, so delivery does not depend on the app remaining open. Delivery is subject to notification permission, Focus, and system sleep. If permission is denied, the app shows an explanation and the timer still works.
-- The calendar groups completed sessions by their start date in the current local time zone. Select a day, then a session to edit its note or delete it. Deletion asks for confirmation.
-- SwiftData stores data in the sandbox’s Application Support directory. An unfinished session has `completed = false` and `endDate = nil`; saving its note sets `endDate` to the original 20-minute deadline, even if saved later.
+- Above **Start**, the app shows the current local clock time with seconds. While a session runs, this becomes the countdown.
+- **Start** begins and immediately persists a 20-minute session. **End Session** stops it early and opens the note sheet.
+- The countdown is always `startDate + 1200 - time.time()`. The UI timer only refreshes the display; sleep and missed ticks do not lengthen a session.
+- At completion, a sheet asks **What did you do?** Blank notes are allowed.
+- A local notification is scheduled with macOS when a session starts, so delivery does not depend on the app staying open. Focus, notification permission, and sleep can affect when it appears.
+- The month grid marks days with saved sessions or goals. Select a day to edit or delete its sessions, or switch to **Daily Goals** to plan and check off goals for any date.
+- Quitting during a session preserves its start time; reopening after the deadline brings back the completion sheet.
 
-## Validation
+## Data
 
-In the creation environment, all Swift files passed syntax parsing, the notification code passed type checking, the project and entitlements passed plist validation, and all nine timer checks passed. A full build and UI/notification runtime checks require Xcode: the installed Command Line Tools do not include the SwiftData macro plugin.
-
-Run the independent timer checks with the macOS Swift toolchain:
-
-```sh
-swiftc Twenty/SessionTiming.swift Tests/SessionTimingTests.swift -o /tmp/twenty-timing-tests
-/tmp/twenty-timing-tests
+```text
+~/Library/Application Support/Twenty Python/sessions.sqlite3
 ```
 
-With Xcode installed, build with:
-
-```sh
-xcodebuild -project Twenty.xcodeproj -scheme Twenty -configuration Debug -destination 'platform=macOS' build
-```
-
-Manual checks: start/cancel; quit and reopen during a session; reopen after its deadline; finish while another app is focused; save/edit/delete notes; navigate months; switch macOS appearance; sleep and wake during a session. The session duration stays 20 minutes in all builds.
-
-Implementation references: Apple’s [SwiftData ModelContainer](https://developer.apple.com/documentation/swiftdata/modelcontainer) and [local notification time triggers](https://developer.apple.com/documentation/usernotifications/untimeintervalnotificationtrigger).
+Sessions and daily goals live in the same database. Dates are absolute Unix timestamps, grouped by session start time in the Mac's current local time zone.
