@@ -45,7 +45,7 @@ def accent():
 
 def confirm_color():
     """Save is affirmative; red would read as destructive next to Delete."""
-    return A.NSColor.systemGreenColor()
+    return A.NSColor.systemPurpleColor()
 
 
 def selection_color():
