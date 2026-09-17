@@ -29,7 +29,7 @@ Build on an Intel Mac to produce an Intel app. The bundle uses local ad-hoc sign
 - Allow notifications when starting the first session. macOS schedules the alert independently of the running app. Focus, notification permissions, and sleep can affect when the system displays it.
 - At completion, a sheet asks **What did you do?** Enter a multiline note and choose **Save**. Blank notes are allowed.
 - Quitting during a session preserves its start time. Reopening after the deadline brings back the completion sheet. Ending early also saves the stop time immediately, so reopening brings back the note sheet with the same duration. A note draft is only persisted when saved.
-- Use the month grid to select a day. A dot marks days with saved sessions or goals. In the **Sessions** tab, click a session to edit its note or delete it, with confirmation.
+- Use the month grid to select a day. A dot marks days with saved sessions or goals. In the **Sessions** tab, the day's sessions are listed earliest first; click one to edit its note or delete it, with confirmation.
 - Switch to **Daily Goals** and click **Add Goal** to write your own goal for the selected date. Save it, check it off when finished, or click its text to edit or delete it. You can plan goals for any calendar date; goals do not repeat or move to another day automatically. Saved goals and checkbox changes persist immediately. Unsaved goal drafts are only kept until you quit or cancel editing.
 - Closing the main window keeps the app running. Use its Dock icon or **Window → Show lock in no gooning** to reopen it. **⌘Q** quits.
 

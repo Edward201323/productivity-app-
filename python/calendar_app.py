@@ -387,7 +387,10 @@ class CalendarDelegate(F.NSObject):
             self.render_goals()
             return
         self.session_scroll.setFrame_(((462, 32), (350, 300)))
-        self.day_sessions = [s for s in self.history if local_day(s.startDate) == self.selected]
+        # Earliest first, so the day reads top to bottom in the order it happened.
+        self.day_sessions = sorted((s for s in self.history
+                                    if local_day(s.startDate) == self.selected),
+                                   key=lambda session: session.startDate)
         count = len(self.day_sessions)
         total = duration_text(sum(session.duration for session in self.day_sessions))
         self.day_summary.setStringValue_(f"{count} {'session' if count == 1 else 'sessions'} · {total}")
