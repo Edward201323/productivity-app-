@@ -14,6 +14,7 @@ See the [Python README](python/README.md) for building, usage, data, and tests.
 - **Start** begins and immediately persists a 20-minute session. **End Session** stops it early and opens the note sheet.
 - The countdown is always `startDate + 1200 - time.time()`. The UI timer only refreshes the display; sleep and missed ticks do not lengthen a session.
 - At completion, a sheet asks **What did you do?** Blank notes are allowed.
+- At the deadline the app sounds an alarm (the system Glass sound, three times) whenever it is running, independent of notifications.
 - A local notification is scheduled with macOS when a session starts, so delivery does not depend on the app staying open. Focus, notification permission, and sleep can affect when it appears.
 - The month grid marks days with saved sessions or goals. Select a day to edit or delete its sessions, or switch to **Daily Goals** to plan and check off goals for any date.
 - Quitting during a session preserves its start time; reopening after the deadline brings back the completion sheet.

@@ -84,6 +84,7 @@ def card(parent, frame):
 
 
 ROW_INSET = 14
+ALARM_SOUND = "Glass"
 
 
 def styled(text, color, font, wrap=False, centered=False, struck=False, indent=0):
@@ -143,6 +144,7 @@ class CalendarDelegate(F.NSObject):
         self.month = self.selected.replace(day=1)
         self.editor = None
         self.editing = None
+        self.alarmed = None
         self.goal_editor = None
         self.goal_editing = None
         self.center = UN.UNUserNotificationCenter.currentNotificationCenter() if notifications else None
@@ -300,6 +302,13 @@ class CalendarDelegate(F.NSObject):
             self.clock_label.setFont_(A.NSFont.monospacedDigitSystemFontOfSize_weight_(60, A.NSFontWeightLight))
             self.clock_label.setTextColor_(accent())
             self.primary.setTitle_("End Session" if remaining > 0 else "Save a note")
+            # Only for a session that ran its full length, and only if the deadline
+            # passed while the app was open - not on reopening hours later.
+            if (remaining <= 0 and self.active.endDate is None
+                    and self.alarmed != self.active.id
+                    and time.time() - self.active.deadline < 120):
+                self.alarmed = self.active.id
+                self.play_alarm()
             if remaining <= 0 and self.editor is None and self.goal_editor is None and self.window.attachedSheet() is None:
                 self.selected = local_day(self.active.startDate)
                 self.month = self.selected.replace(day=1)
@@ -669,6 +678,18 @@ class CalendarDelegate(F.NSObject):
         self.editor.orderOut_(None)
         self.editor = None
         self.editing = None
+
+    @objc.python_method
+    def play_alarm(self, plays=3):
+        """Audible even when notifications are denied, silenced, or held by Focus."""
+        sound = A.NSSound.soundNamed_(ALARM_SOUND)
+        if sound is None:
+            A.NSBeep()
+        else:
+            sound.stop()
+            sound.play()
+        if plays > 1:
+            AppHelper.callLater(1.4, self.play_alarm, plays - 1)
 
     @objc.python_method
     def schedule_notification(self, session):
