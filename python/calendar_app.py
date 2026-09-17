@@ -43,6 +43,11 @@ def accent():
     return A.NSColor.systemRedColor()
 
 
+def confirm_color():
+    """Save is affirmative; red would read as destructive next to Delete."""
+    return A.NSColor.systemGreenColor()
+
+
 def selection_color():
     return A.NSColor.unemphasizedSelectedContentBackgroundColor()
 
@@ -501,7 +506,7 @@ class CalendarDelegate(F.NSObject):
         cancel.setKeyEquivalent_("\x1b")
         save = button(view, "Save", 402, 20, 94, 32, self, "saveGoal:")
         save.setKeyEquivalent_("\r")
-        save.setBezelColor_(accent())
+        save.setBezelColor_(confirm_color())
         self.window.beginSheet_completionHandler_(self.goal_editor, None)
         self.goal_editor.makeFirstResponder_(self.goal_field)
 
@@ -610,7 +615,7 @@ class CalendarDelegate(F.NSObject):
             button(view, "Discard…", 24, 20, 94, 32, self, "deleteNote:")
         save = button(view, "Save", 402, 20, 94, 32, self, "saveNote:")
         save.setKeyEquivalent_("\r")
-        save.setBezelColor_(accent())
+        save.setBezelColor_(confirm_color())
         self.window.beginSheet_completionHandler_(self.editor, None)
         self.editor.makeFirstResponder_(self.note_field)
 
