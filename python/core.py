@@ -10,8 +10,22 @@ import sqlite3
 import time
 import uuid
 
-DURATION = 20 * 60
-DAY_START_HOUR = 8
+DURATION = 20 * 60              # default session length, in seconds
+DAY_START_HOUR = 8              # default hour at which a new day begins
+LENGTH_LIMITS = (60, 180 * 60)  # a session may run from one minute to three hours
+
+_day_start_hour = DAY_START_HOUR
+
+
+def day_start_hour() -> int:
+    return _day_start_hour
+
+
+def set_day_start_hour(hour: int) -> None:
+    """local_day is called from all over, so the hour lives here instead of
+    being threaded through every call site."""
+    global _day_start_hour
+    _day_start_hour = int(hour)
 
 
 @dataclass(frozen=True)
@@ -30,10 +44,11 @@ class Session:
     endDate: float | None
     note: str
     completed: bool
+    length: float = DURATION
 
     @property
     def deadline(self) -> float:
-        return self.startDate + DURATION
+        return self.startDate + self.length
 
     def remaining(self, now: float | None = None) -> float:
         if self.endDate is not None:
@@ -100,6 +115,17 @@ class Store:
                 )
             """)
             self.db.execute("CREATE INDEX IF NOT EXISTS goals_by_day ON goals(day, createdAt)")
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            columns = {row["name"] for row in self.db.execute("PRAGMA table_info(sessions)")}
+            if "length" not in columns:
+                self.db.execute("ALTER TABLE sessions ADD COLUMN "
+                                f"length REAL NOT NULL DEFAULT {DURATION}")
+        set_day_start_hour(self.day_start())
         self._restrict(path)
 
     @staticmethod
@@ -121,11 +147,35 @@ class Store:
         return rows[0] if rows else None
 
     def start(self, now: float | None = None) -> Session:
-        session = Session(str(uuid.uuid4()), time.time() if now is None else now, None, "", False)
+        session = Session(str(uuid.uuid4()), time.time() if now is None else now,
+                          None, "", False, self.session_length())
         with self.db:
-            self.db.execute("INSERT INTO sessions(id, startDate) VALUES (?, ?)",
-                            (session.id, session.startDate))
+            self.db.execute("INSERT INTO sessions(id, startDate, length) VALUES (?, ?, ?)",
+                            (session.id, session.startDate, session.length))
         return session
+
+    def setting(self, key: str, default: float) -> float:
+        row = self.db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return default if row is None else float(row["value"])
+
+    def session_length(self) -> float:
+        return self.setting("session_length", DURATION)
+
+    def day_start(self) -> int:
+        return int(self.setting("day_start_hour", DAY_START_HOUR))
+
+    def save_preferences(self, session_length: float, day_start: int) -> None:
+        low, high = LENGTH_LIMITS
+        if not low <= session_length <= high:
+            raise ValueError(f"A session must run between {low // 60} and {high // 60} minutes.")
+        if not 0 <= day_start <= 23:
+            raise ValueError("A day has to start on an hour between 0 and 23.")
+        with self.db:
+            for key, value in (("session_length", session_length), ("day_start_hour", day_start)):
+                self.db.execute(
+                    "INSERT INTO settings(key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, str(value)))
+        set_day_start_hour(day_start)
 
     def stop(self, session: Session, now: float | None = None) -> Session:
         end = min(session.deadline, max(session.startDate, time.time() if now is None else now))
@@ -201,7 +251,7 @@ class Store:
 def local_day(timestamp: float) -> date:
     """A day runs from DAY_START_HOUR to DAY_START_HOUR, so work done after
     midnight belongs to the day it felt like, not the one the clock had rolled to."""
-    return (datetime.fromtimestamp(timestamp) - timedelta(hours=DAY_START_HOUR)).date()
+    return (datetime.fromtimestamp(timestamp) - timedelta(hours=_day_start_hour)).date()
 
 
 def current_day(now: float | None = None) -> date:

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from core import (DAY_START_HOUR, DURATION, Store, countdown, current_day, duration_text,
-                  local_day, month_cells, shifted_month)
+                  local_day, month_cells, set_day_start_hour, shifted_month)
 
 
 class StoreTests(unittest.TestCase):
@@ -142,6 +142,78 @@ class DayBoundaryTests(unittest.TestCase):
     def test_current_day_uses_the_same_boundary(self):
         self.assertEqual(current_day(self.at(2026, 9, 18, 3)), date(2026, 9, 17))
         self.assertEqual(current_day(self.at(2026, 9, 18, 10)), date(2026, 9, 18))
+
+
+class SettingsTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name) / "sessions.sqlite3"
+        self.store = Store(self.path)
+        self.addCleanup(self.temp.cleanup)
+        self.addCleanup(self.store.close)
+        self.addCleanup(set_day_start_hour, DAY_START_HOUR)
+
+    def test_defaults_when_nothing_has_been_saved(self):
+        self.assertEqual(self.store.session_length(), DURATION)
+        self.assertEqual(self.store.day_start(), DAY_START_HOUR)
+
+    def test_preferences_survive_reopening(self):
+        self.store.save_preferences(45 * 60, 6)
+        self.store.close()
+        reopened = Store(self.path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.session_length(), 45 * 60)
+        self.assertEqual(reopened.day_start(), 6)
+
+    def test_saving_a_day_start_moves_the_boundary(self):
+        self.store.save_preferences(DURATION, 5)
+        self.assertEqual(local_day(datetime(2026, 9, 18, 4, 30).timestamp()), date(2026, 9, 17))
+        self.assertEqual(local_day(datetime(2026, 9, 18, 5, 30).timestamp()), date(2026, 9, 18))
+
+    def test_a_new_session_takes_the_configured_length(self):
+        self.store.save_preferences(45 * 60, DAY_START_HOUR)
+        session = self.store.start(1_700_000_000.0)
+        self.assertEqual(session.length, 45 * 60)
+        self.assertEqual(session.deadline, 1_700_000_000.0 + 45 * 60)
+
+    def test_changing_the_length_leaves_past_sessions_alone(self):
+        old = self.store.start(1_700_000_000.0)
+        self.store.complete(old, "twenty", old.deadline)
+        self.store.save_preferences(60 * 60, DAY_START_HOUR)
+        kept = self.store.history()[0]
+        self.assertEqual(kept.length, DURATION)
+        self.assertEqual(kept.duration, DURATION)
+
+    def test_out_of_range_values_are_refused(self):
+        for length, hour in ((30, DAY_START_HOUR), (10 * 3600, DAY_START_HOUR), (DURATION, 24), (DURATION, -1)):
+            with self.assertRaises(ValueError):
+                self.store.save_preferences(length, hour)
+
+
+class MigrationTests(unittest.TestCase):
+    """Databases written before sessions carried their own length must still open."""
+
+    def test_existing_database_gains_the_length_column(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sessions.sqlite3"
+            old = sqlite3.connect(path)
+            old.execute("""CREATE TABLE sessions (
+                               id TEXT PRIMARY KEY, startDate REAL NOT NULL, endDate REAL,
+                               note TEXT NOT NULL DEFAULT '',
+                               completed INTEGER NOT NULL DEFAULT 0)""")
+            old.execute("INSERT INTO sessions VALUES ('a', 1700000000.0, 1700001200.0, 'before', 1)")
+            old.commit()
+            old.close()
+
+            store = Store(path)
+            self.addCleanup(store.close)
+            session = store.history()[0]
+            self.assertEqual(session.note, "before")
+            self.assertEqual(session.length, DURATION)
+            self.assertEqual(session.deadline, 1700000000.0 + DURATION)
+            # And it still accepts new sessions afterwards.
+            fresh = store.start(1700100000.0)
+            self.assertEqual(fresh.length, DURATION)
 
 
 class CalendarAndTimingTests(unittest.TestCase):

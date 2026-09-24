@@ -15,8 +15,8 @@ import UserNotifications as UN
 import objc
 from PyObjCTools import AppHelper
 
-from core import (Store, countdown, current_day, duration_text, local_day,
-                  month_cells, shifted_month)
+from core import (LENGTH_LIMITS, Store, countdown, current_day, duration_text,
+                  local_day, month_cells, shifted_month)
 
 
 def label(parent, text, x, y, width, height=24, size=14, secondary=False, centered=False):
@@ -151,6 +151,7 @@ class CalendarDelegate(F.NSObject):
         self.editor = None
         self.editing = None
         self.alarmed = None
+        self.settings_window = None
         self.goal_editor = None
         self.goal_editing = None
         self.center = UN.UNUserNotificationCenter.currentNotificationCenter() if notifications else None
@@ -165,6 +166,13 @@ class CalendarDelegate(F.NSObject):
         self.window.center()
         self.window.setContentView_(BackgroundView.alloc().initWithFrame_(((0, 0), (840, 720))))
         content = self.window.contentView()
+        self.settings_button = A.NSButton.buttonWithImage_target_action_(
+            A.NSImage.imageWithSystemSymbolName_accessibilityDescription_("gearshape", "settings"),
+            self, "openSettings:")
+        self.settings_button.setFrame_(((770, 660), (40, 30)))
+        self.settings_button.setBezelStyle_(A.NSBezelStyleRounded)
+        self.settings_button.setToolTip_("settings")
+        content.addSubview_(self.settings_button)
         self.clock_label = label(content, "", 30, 600, 780, 36, 24, True, True)
         self.primary = button(content, "Start", 320, 547, 200, 36, self, "primaryAction:")
         self.primary.setControlSize_(A.NSControlSizeLarge)
@@ -226,6 +234,10 @@ class CalendarDelegate(F.NSObject):
         app_menu = A.NSMenu.alloc().initWithTitle_("lock in no gooning")
         app_menu.addItemWithTitle_action_keyEquivalent_("about lock in no gooning", "orderFrontStandardAboutPanel:", "")
         app_menu.addItem_(A.NSMenuItem.separatorItem())
+        preferences = app_menu.addItemWithTitle_action_keyEquivalent_(
+            "settings\u2026", "openSettings:", ",")
+        preferences.setTarget_(self)
+        app_menu.addItem_(A.NSMenuItem.separatorItem())
         app_menu.addItemWithTitle_action_keyEquivalent_("hide lock in no gooning", "hide:", "h")
         app_menu.addItemWithTitle_action_keyEquivalent_("quit lock in no gooning", "terminate:", "q")
         app_item.setSubmenu_(app_menu)
@@ -280,7 +292,8 @@ class CalendarDelegate(F.NSObject):
         alert = A.NSAlert.alloc().init()
         alert.setMessageText_("Couldn’t save the change")
         alert.setInformativeText_(str(error))
-        alert.beginSheetModalForWindow_completionHandler_(self.goal_editor or self.editor or self.window, None)
+        alert.beginSheetModalForWindow_completionHandler_(
+            self.settings_window or self.goal_editor or self.editor or self.window, None)
 
     def primaryAction_(self, sender):
         try:
@@ -471,6 +484,87 @@ class CalendarDelegate(F.NSObject):
             control.setToolTip_("Edit goal: " + goal.text)
         self.session_scroll.setDocumentView_(document)
         document.scrollPoint_((0, height))
+
+    def openSettings_(self, sender):
+        self.open_settings()
+
+    @objc.python_method
+    def open_settings(self):
+        if (self.settings_window is not None or self.editor is not None
+                or self.goal_editor is not None):
+            return
+        self.settings_window = A.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            ((0, 0), (470, 260)), A.NSWindowStyleMaskTitled, A.NSBackingStoreBuffered, False)
+        self.settings_window.setReleasedWhenClosed_(False)
+        self.settings_window.setTitle_("settings")
+        view = self.settings_window.contentView()
+        label(view, "settings", 24, 206, 422, 30, 22)
+
+        minutes = round(self.store.session_length() / 60)
+        label(view, "session length", 24, 158, 150, 22, 13)
+        self.length_field = A.NSTextField.alloc().initWithFrame_(((186, 155), (64, 24)))
+        self.length_field.setAlignment_(A.NSTextAlignmentRight)
+        self.length_field.setStringValue_(str(minutes))
+        self.length_field.setAccessibilityLabel_("Session length in minutes")
+        view.addSubview_(self.length_field)
+        self.length_stepper = A.NSStepper.alloc().initWithFrame_(((256, 153), (20, 28)))
+        self.length_stepper.setMinValue_(LENGTH_LIMITS[0] / 60)
+        self.length_stepper.setMaxValue_(LENGTH_LIMITS[1] / 60)
+        self.length_stepper.setIncrement_(5)
+        self.length_stepper.setValueWraps_(False)
+        self.length_stepper.setIntValue_(minutes)
+        self.length_stepper.setTarget_(self)
+        self.length_stepper.setAction_("stepLength:")
+        view.addSubview_(self.length_stepper)
+        label(view, "minutes", 286, 157, 120, 22, 13, True)
+
+        label(view, "a new day starts at", 24, 110, 150, 22, 13)
+        self.day_start_popup = A.NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            ((186, 106), (130, 26)), False)
+        for hour in range(24):
+            self.day_start_popup.addItemWithTitle_(clock_time(datetime(2000, 1, 1, hour)))
+        self.day_start_popup.selectItemAtIndex_(self.store.day_start())
+        self.day_start_popup.setAccessibilityLabel_("Hour a new day begins")
+        view.addSubview_(self.day_start_popup)
+        label(view, "sessions logged before this hour count towards the day before",
+              24, 76, 422, 20, 11, True)
+
+        cancel = button(view, "Cancel", 255, 20, 94, 32, self, "cancelSettings:")
+        cancel.setKeyEquivalent_("\x1b")
+        save = button(view, "Save", 352, 20, 94, 32, self, "saveSettings:")
+        save.setKeyEquivalent_("\r")
+        save.setBezelColor_(confirm_color())
+        self.window.beginSheet_completionHandler_(self.settings_window, None)
+
+    def stepLength_(self, sender):
+        self.length_field.setStringValue_(str(int(sender.intValue())))
+
+    def saveSettings_(self, sender):
+        try:
+            text = str(self.length_field.stringValue()).strip()
+            try:
+                minutes = int(round(float(text)))
+            except ValueError:
+                raise ValueError("Enter the session length as a number of minutes.")
+            self.store.save_preferences(minutes * 60, self.day_start_popup.indexOfSelectedItem())
+            self.close_settings()
+            # The day boundary moved, so regroup everything.
+            self.selected = current_day()
+            self.month = self.selected.replace(day=1)
+            self.reload_history()
+            self.refresh()
+        except (sqlite3.Error, ValueError) as error:
+            self.show_error(error)
+
+    def cancelSettings_(self, sender):
+        self.close_settings()
+        self.refresh()
+
+    @objc.python_method
+    def close_settings(self):
+        self.window.endSheet_(self.settings_window)
+        self.settings_window.orderOut_(None)
+        self.settings_window = None
 
     def addGoal_(self, sender):
         self.open_goal_editor()
