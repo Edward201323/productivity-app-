@@ -25,6 +25,6 @@ See the [Python README](python/README.md) for building, usage, data, and tests.
 ~/Library/Application Support/Twenty Python/sessions.sqlite3
 ```
 
-Sessions and daily goals live in the same database. Dates are absolute Unix timestamps, grouped by session start time in the Mac's current local time zone.
+Sessions and daily goals live in the same database. Dates are absolute Unix timestamps, grouped by session start time in the Mac's current local time zone. A day runs 8am to 8am, so work done at 4am is filed under the previous date rather than starting a new one; change `DAY_START_HOUR` in `python/core.py` to move that boundary.
 
 Your notes and goals stay private. They are written outside this repository, the folder and database are created owner-only (`700` / `600`), and nothing is ever uploaded — the app makes no network requests. `.gitignore` also blocks `*.sqlite3`, `*.db`, `*.log`, and lock files, so a database copied into the project cannot be committed by accident.

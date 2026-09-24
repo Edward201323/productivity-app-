@@ -15,7 +15,8 @@ import UserNotifications as UN
 import objc
 from PyObjCTools import AppHelper
 
-from core import Store, countdown, duration_text, local_day, month_cells, shifted_month
+from core import (Store, countdown, current_day, duration_text, local_day,
+                  month_cells, shifted_month)
 
 
 def label(parent, text, x, y, width, height=24, size=14, secondary=False, centered=False):
@@ -145,7 +146,7 @@ class CalendarDelegate(F.NSObject):
     def initialize(self, data_dir: Path, notifications=True):
         self.store = Store(data_dir / "sessions.sqlite3")
         self.active = self.store.active()
-        self.selected = date.today()
+        self.selected = current_day()
         self.month = self.selected.replace(day=1)
         self.editor = None
         self.editing = None
@@ -337,7 +338,7 @@ class CalendarDelegate(F.NSObject):
         self.cells = month_cells(self.month.year, self.month.month)
         counts = Counter(local_day(session.startDate) for session in self.history)
         goal_counts = self.store.goal_counts()
-        today = date.today()
+        today = current_day()
         self.place_highlights(today)
         for index, control in enumerate(self.day_buttons):
             day = self.cells[index] if index < len(self.cells) else None
@@ -582,7 +583,7 @@ class CalendarDelegate(F.NSObject):
             self.render_calendar()
 
     def today_(self, sender):
-        self.selected = date.today()
+        self.selected = current_day()
         self.month = self.selected.replace(day=1)
         self.render_calendar()
 

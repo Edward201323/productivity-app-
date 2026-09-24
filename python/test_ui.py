@@ -9,6 +9,7 @@ import AppKit as A
 import Foundation as F
 
 from calendar_app import CalendarDelegate
+from core import current_day
 
 
 def pump():
@@ -67,7 +68,7 @@ def main():
         delegate.nextMonth_(None)
         delegate.previousMonth_(None)
         delegate.today_(None)
-        assert delegate.selected == date.today()
+        assert delegate.selected == current_day()
         delegate.day_tabs.setSelectedSegment_(1)
         delegate.changeDayTab_(None)
         assert not delegate.add_goal_button.isHidden()
@@ -81,7 +82,7 @@ def main():
         checkbox = next(v for v in delegate.session_scroll.documentView().subviews()
                         if isinstance(v, A.NSButton))
         checkbox.performClick_(None)
-        assert delegate.store.goals(date.today())[0].completed
+        assert delegate.store.goals(current_day())[0].completed
         delegate.open_goal_editor(delegate.day_goals[0])
         pump()
         delegate.goal_field.setString_("Write and review the first draft")
@@ -126,10 +127,10 @@ def main():
         delegate.open_goal_editor(delegate.day_goals[0])
         pump()
         delegate.delete_goal_response(A.NSAlertFirstButtonReturn)
-        assert len(delegate.store.goals(date.today())) == 1
+        assert len(delegate.store.goals(current_day())) == 1
         delegate.delete_goal_response(A.NSAlertSecondButtonReturn)
         pump()
-        assert delegate.store.goals(date.today()) == []
+        assert delegate.store.goals(current_day()) == []
         delegate.addGoal_(None)
         pump()
         delegate.goal_field.setString_("Keep this goal draft while the timer finishes")
@@ -141,7 +142,7 @@ def main():
         pump()
         delegate.refresh()
         assert delegate.editor is not None
-        assert delegate.store.goals(date.today())[0].text == "Keep this goal draft while the timer finishes"
+        assert delegate.store.goals(current_day())[0].text == "Keep this goal draft while the timer finishes"
         delegate.note_field.setString_("Session finished while editing a goal")
         delegate.saveNote_(None)
         pump()

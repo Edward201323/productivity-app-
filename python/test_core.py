@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
 
-from core import DURATION, Store, countdown, duration_text, local_day, month_cells, shifted_month
+from core import (DAY_START_HOUR, DURATION, Store, countdown, current_day, duration_text,
+                  local_day, month_cells, shifted_month)
 
 
 class StoreTests(unittest.TestCase):
@@ -111,6 +112,36 @@ class StoreTests(unittest.TestCase):
         history = self.store.history()
         self.assertEqual([s.note for s in history], ["90000", "2000", "0"])
         self.assertNotEqual(local_day(history[0].startDate), local_day(history[-1].startDate))
+
+
+class DayBoundaryTests(unittest.TestCase):
+    """A day runs 8am to 8am, so a session at 4am belongs to the day before."""
+
+    def at(self, year, month, day, hour, minute=0):
+        return datetime(year, month, day, hour, minute).timestamp()
+
+    def test_after_midnight_belongs_to_the_previous_day(self):
+        for hour in (0, 2, 4, 7):
+            self.assertEqual(local_day(self.at(2026, 9, 18, hour)), date(2026, 9, 17),
+                             f"{hour}:00 should still be the 17th")
+
+    def test_the_boundary_itself_starts_the_new_day(self):
+        self.assertEqual(local_day(self.at(2026, 9, 18, DAY_START_HOUR - 1, 59)), date(2026, 9, 17))
+        self.assertEqual(local_day(self.at(2026, 9, 18, DAY_START_HOUR)), date(2026, 9, 18))
+
+    def test_daytime_and_evening_are_unaffected(self):
+        for hour in (9, 12, 17, 23):
+            self.assertEqual(local_day(self.at(2026, 9, 18, hour)), date(2026, 9, 18),
+                             f"{hour}:00 should be the 18th")
+
+    def test_a_night_session_groups_with_the_evening_before_it(self):
+        evening = self.at(2026, 9, 17, 23, 30)
+        night = self.at(2026, 9, 18, 4, 30)
+        self.assertEqual(local_day(evening), local_day(night))
+
+    def test_current_day_uses_the_same_boundary(self):
+        self.assertEqual(current_day(self.at(2026, 9, 18, 3)), date(2026, 9, 17))
+        self.assertEqual(current_day(self.at(2026, 9, 18, 10)), date(2026, 9, 18))
 
 
 class CalendarAndTimingTests(unittest.TestCase):

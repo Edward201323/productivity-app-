@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import math
 from pathlib import Path
 import sqlite3
@@ -11,6 +11,7 @@ import time
 import uuid
 
 DURATION = 20 * 60
+DAY_START_HOUR = 8
 
 
 @dataclass(frozen=True)
@@ -198,4 +199,10 @@ class Store:
 
 
 def local_day(timestamp: float) -> date:
-    return datetime.fromtimestamp(timestamp).date()
+    """A day runs from DAY_START_HOUR to DAY_START_HOUR, so work done after
+    midnight belongs to the day it felt like, not the one the clock had rolled to."""
+    return (datetime.fromtimestamp(timestamp) - timedelta(hours=DAY_START_HOUR)).date()
+
+
+def current_day(now: float | None = None) -> date:
+    return local_day(time.time() if now is None else now)
